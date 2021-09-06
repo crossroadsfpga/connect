@@ -1,0 +1,21 @@
+clean:
+	@echo "Cleaning..."
+	rm -rf ./obj/*
+	rm -rf ./build/*
+	rm -f *.o *.so
+	find . -name "*.sched" -exec rm -rf {} \;
+	find . -name "*.o" -exec rm -rf {} \;
+	find . -name "*.bo" -exec rm -rf {} \;
+	find . -name "*.bi" -exec rm -rf {} \;
+	find . -name "*.ba" -exec rm -rf {} \;
+
+swclean:
+	find . -name "*.o" -exec rm -rf {} \;
+
+clean_xst:
+	rm -rf $(XST_DIR)/*
+
+clean_vcs:
+	rm -rf $(VCS_DIR)/*
+
+clobber: clean clean_xst clean_vcs 

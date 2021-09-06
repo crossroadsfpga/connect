@@ -1,0 +1,81 @@
+tb: prims
+	$(call bsim_compile, mkCoramSimTb, ./rtl/Microbench/CoramTb.bsv);
+
+pwr:
+	$(call vsim_compile, top, ./rtl/PwrTest/Testbench.bsv)
+
+peakpwr:
+	$(call vsim_compile, mkPeakPower, ./rtl/PeakPower/PeakPower.bsv)
+ 
+peakpwr_tb:
+	$(call bsim_compile, mkPeakPower, ./rtl/PeakPower/PeakPower.bsv)
+
+#$(call vcs_compile, top)
+
+memtb: $(OBJS)
+	$(call bsim_compile, mkMemoryTb, ./rtl/Microbench/MemoryTb.bsv);
+ 
+tort1: $(OBJS)
+	$(call bsim_compile, mkMemTort1, ./rtl/Microbench/MemTort1.bsv);
+
+mm: $(OBJS)
+	$(call bsim_compile, mkMM, ./rtl/MM/MM.bsv);
+
+gemmtop: copy_vlog
+	$(call vsim_compile, mkPeGroup, ./rtl/GEMM/GemmTop.bsv)
+	./fix_madds.sh
+ 
+gemm: copy_vlog
+	$(call vsim_compile, mkGemmPE_dsp4, ./rtl/GEMM/GemmPE.bsv)
+	./fix_madds.sh
+
+madd:
+	$(call vsim_compile, mkMadd, ./rtl/GEMM/Madd.bsv)
+ 
+gemm_tb: copy_vlog
+	$(call vsim_compile, mkGemmTb, ./rtl/GEMM/GemmTb.bsv)
+
+gemm_bsim: $(OBJS)
+	$(call bsim_compile, mkGemmTb, ./rtl/GEMM/GemmTb.bsv)
+
+gemmpwr:
+	$(call vsim_compile, mkGemmPower, ./rtl/GEMM/GemmPower.bsv)
+	./fix_madds.sh
+
+gemmpwr_vcs: $(OBJS) copy_vlog
+	$(call vsim_compile, mkGemmPower, ./rtl/GEMM/GemmPower.bsv)
+	./fix_madds.sh
+	$(call vcs_compile, mkGemmPower)
+
+gemmpwr_bsim: $(OBJS)
+	$(call bsim_compile, mkGemmPower, ./rtl/GEMM/GemmPower.bsv)
+ 
+fptb: copy_vlog
+	$(call vsim_compile, mkFpTb2, ./rtl/GEMM/Madd.bsv)
+	$(call vcs_compile, mkFpTb2)
+
+spmv: $(OBJS)
+	$(call bsim_compile, mkSPMV, ./rtl/SpMV/SpMV.bsv);
+
+dma: $(OBJS)
+	$(call bsim_compile, mkDmaTb, ./rtl/Microbench/DmaTb.bsv);  
+
+copy_prims:
+	cp ./rtl/Prims/*.v ./build
+
+copy_vlog:
+	mkdir -p build
+	cp ./Prims/*.v ./build
+	#cp ./lib/*.v ./build
+	#cp *.data ./build
+	- cp ./*routing_*.hex ./build
+	- cp ./*.rom ./build
+	#cp ./net_configs/*.data ./build
+
+copy_init_files:
+	cp *.data ./build
+
+
+	#rm -f ./build/main.v
+	#cp ./rtl/Prims/*.v ./build
+	#find ./rtl/Prims -name "*.v" -exec cp {} ./build \; 

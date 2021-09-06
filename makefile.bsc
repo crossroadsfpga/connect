@@ -1,0 +1,12 @@
+-include $(DEP)
+
+SRC_PATH=$(shell find . -name "$(TARGET).bsv")
+
+%.bo: %.bsv
+	#bsc $(BSV_MACROS) $(GLOBAL_FLAGS) -u $<
+	bsc $(GLOBAL_FLAGS) -u $<
+
+#target:
+target:
+	#bsc -u -verilog $(BSV_MACROS) $(GLOBAL_FLAGS) -g mk$(TOP) $(SRC_PATH)
+	bsc -u -verilog $(GLOBAL_FLAGS) -g $(TOP) $(SRC_PATH)
