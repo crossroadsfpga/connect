@@ -258,19 +258,18 @@ module mkIQRouterCore(RouterCore);
   for(Integer i=0; i<valueOf(NumInPorts);i=i+1) begin
     let not_empty = flitBuffers_notEmpty[i];
     let out_port = outPortFIFOs_first[i];
-    if(not_empty && credits[out_port] > 0) begin
-
-      if(`USE_VIRTUAL_LINKS) begin
-	let is_locked = lockedVL[out_port];
-	if( !is_locked || (is_locked && inPortVL[out_port] == fromInteger(i) ) ) begin
-	  eligIO[i] = replicate(False);
-          eligIO[i][out_port] = True; 
-	end
-      end else begin
-        eligIO[i][out_port] = True; 
-      end
-
-    end
+		if(not_empty && credits[out_port] > 0) begin
+      		if(`USE_VIRTUAL_LINKS) begin
+				let is_locked = lockedVL[out_port];
+				if( !is_locked || (is_locked && inPortVL[out_port] == fromInteger(i) ) ) begin
+	 				eligIO[i] = replicate(False);
+					eligIO[i][out_port] = True; 
+				end
+      		end else begin
+        		eligIO[i][out_port] = True; 
+      		end
+    	end
+//	end
   end
   // -- End Option 1 -- 
 
@@ -319,12 +318,26 @@ module mkIQRouterCore(RouterCore);
 	let tmp = flitBuffers[i].notEmpty(); // double check that there is a flit - VC is always 0 for input-queued router 
 	let has_flits = tmp[0]; // double check that there is a flit - VC is always 0 for input-queued router 
 	let has_credits = credits[selectedOut.Valid] > 0; // double check that credits still exist. Alternatively change margin in mkMultiFIFOMem
-	if (has_flits && has_credits) begin
-	  activeInPorts[i] = True;
-	  //InPort_t inp = fromInteger(i);
-	  //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
-	  activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
-	end
+	//if (has_flits && has_credits) begin //comment by zhipeng
+
+	if(`USE_VIRTUAL_LINKS) begin//added by zhipeng 06/21/2016 to double check the vl
+		let is_locked = lockedVL[selectedOut.Valid];
+		if( !is_locked || (is_locked && inPortVL[selectedOut.Valid] == fromInteger(i) ) ) begin
+			if (has_flits && has_credits && outPortFIFOs_first[i] == selectedOut.Valid) begin
+			  activeInPorts[i] = True;
+			  //InPort_t inp = fromInteger(i);
+			  //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
+			  activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
+			end
+		end//end add
+	end else begin
+		if (has_flits && has_credits && outPortFIFOs_first[i] == selectedOut.Valid) begin
+		  activeInPorts[i] = True;
+		  //InPort_t inp = fromInteger(i);
+		  //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
+		  activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
+		end
+	end//end virtual_link
       end
 
     end
@@ -636,6 +649,17 @@ module mkIQRouterCore(RouterCore);
 	      //if(flitOut.Valid.out_p != fromInteger(o)) begin
 	      //   `DBG_ID(("Flit out_port %d does not match actual out_port %d", flitOut.Valid.out_p, o));
 	      //end 
+
+              if(`USE_VIRTUAL_LINKS) begin//added the virtual link updating logic by zhipeng(06/21/2016)
+		if(flitOut.Valid.is_tail) begin // If you see a tail unlock VL  (also covers head/tail case)
+		    lockedVL[o] <= False;
+		    `DBG_DETAIL_ID(("UNLOCKED output %0d (was locked to in:%0d)", o, inPortVL[o] ));
+		end else begin
+		    lockedVL[o] <= True;
+		    `DBG_DETAIL_ID(("LOCKED output %0d locked to in:%0d", o, active_in ));
+		    inPortVL[o] <= active_in;
+		end
+	      end//end add
 
 	      // clear credits
 	      credits_clear[o] <= True;  // VC is always 0 for input-queued router 

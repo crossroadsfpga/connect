@@ -40,7 +40,7 @@ endinterface
 
 module mkMultiFIFOMem#( Bool storeHeadsTailsInLUTRAM, Integer full_margin)
                       ( MultiFIFOMem#(fifo_data_t, num_fifos, fifo_depth) )
-  provisos( Bits#(fifo_data_t, fifo_data_width_t) );
+  provisos( Bits#(fifo_data_t, fifo_data_width_t));
   
   staticAssert(full_margin < 4, "Full margin can only take values 0,1,2 or 3");
   //static_assert(full_margin < 3, "Full margin can only take values 0, 1 or 2");
@@ -57,7 +57,7 @@ endmodule
 
 module mkMultiFIFOMem_HeadTailsInRegs#( Integer full_margin )
                                       (MultiFIFOMem#(fifo_data_t, num_fifos, fifo_depth))
-  provisos( Bits#(fifo_data_t, fifo_data_width_t) );
+  provisos( Bits#(fifo_data_t, fifo_data_width_t));
   String name = "MultiFIFOMem";
   
   //typedef Bit#(TLog#(num_fifos))                              FIFOIdx_t;
@@ -74,6 +74,8 @@ module mkMultiFIFOMem_HeadTailsInRegs#( Integer full_margin )
   Vector#(num_fifos, Reg#( Bit#(TLog#(fifo_depth)) ))     tails    <- replicateM(mkConfigReg(0));
   Vector#(num_fifos, Reg#(Bool))          not_empty <- replicateM(mkConfigReg(False));
   Vector#(num_fifos, Reg#(Bool))          not_full  <- replicateM(mkConfigReg(True));
+
+  Vector#(num_fifos, Reg#(Bool))          not_full_dyn  <- replicateM(mkConfigReg(True));//added by zhipeng
   
   // Wires to have enq and deq communicate to determine which queues are empty
   Wire#(Maybe#( Bit#(TLog#(num_fifos)) ))                wrFIFO <- mkDWire(Invalid);  
@@ -88,11 +90,29 @@ module mkMultiFIFOMem_HeadTailsInRegs#( Integer full_margin )
   Wire#(Bit#(TLog#(fifo_depth)))                        new_new_tail <- mkDWire(0);  
   Wire#(Bit#(TLog#(fifo_depth)))                        new_new_new_tail <- mkDWire(0);  
   Wire#(Bit#(TLog#(fifo_depth)))                        new_new_new_new_tail <- mkDWire(0);  
+
+//added by zhipeng
+  Vector#(num_fifos, Reg#( Bit#(TLog#(fifo_depth)) ))     new_tail_r    <- replicateM(mkConfigReg(0));
+  Vector#(num_fifos, Reg#( Bit#(TLog#(fifo_depth)) ))     new_new_tail_r    <- replicateM(mkConfigReg(0));
+  Vector#(num_fifos, Reg#( Bit#(TLog#(fifo_depth)) ))     new_new_new_tail_r    <- replicateM(mkConfigReg(0));
+  Vector#(num_fifos, Reg#( Bit#(TLog#(fifo_depth)) ))     new_new_new_new_tail_r    <- replicateM(mkConfigReg(0));
+//end add
   
   Wire#(Bit#(TLog#(fifo_depth)))                        cur_tail <- mkDWire(0);  
   Wire#(Bit#(TLog#(fifo_depth)))                        cur_head <- mkDWire(0);
   //Wire#(QueuePtr_t)                                   wrPtr <- mkDWire(0);  
   //Wire#(qPtr)                                      rdPtr <- mkDWire(0);  
+//added by zhipeng
+  Bit#(TLog#(fifo_depth)) fifoSize = fromInteger(valueof(TSub#(fifo_depth,1)));
+
+
+  function Bit#(TLog#(fifo_depth)) incr(Bit#(TLog#(fifo_depth)) i);
+	if (i == fifoSize)
+		return 0;
+	else
+    	return i+1;
+  endfunction
+//end add
 
   rule update_heads_tails(True);
     // update tail
@@ -109,6 +129,13 @@ module mkMultiFIFOMem_HeadTailsInRegs#( Integer full_margin )
       let fifo_in = wrFIFO.Valid;
       if(!isValid(rdFIFO) || (isValid(rdFIFO) && fifo_in != rdFIFO.Valid)) begin // only need to update if a data wasn't dequeued from the same fifo
 	not_empty[fifo_in] <= True;
+
+//Added by zhipeng
+	//no matter what margin is, the "true" full is new_tail == heads
+	if(new_tail == heads[fifo_in]) begin 
+		not_full_dyn[fifo_in] <= False;
+	end
+//end add
 
 	if(full_margin == 0) begin // no margin, full actually corresponds to full signal
 	  if(new_tail == heads[fifo_in]) begin  // I enqueued and fifo became full
@@ -137,7 +164,31 @@ module mkMultiFIFOMem_HeadTailsInRegs#( Integer full_margin )
     if(isValid(rdFIFO)) begin
       let fifo_out = rdFIFO.Valid;
       if(!isValid(wrFIFO) || (isValid(wrFIFO) && fifo_out != wrFIFO.Valid)) begin // only need to update if data wasn't enqueued to the same fifo
-	not_full[fifo_out] <= True;
+//	not_full[fifo_out] <= True;//comment by zhipeng
+		//changed by zhipeng, We can't say the fifo is not_full by just dequeuing one flit. Because of the margin.
+		not_full_dyn[fifo_out] <= True;	
+		if (full_margin == 0) begin 
+			not_full[fifo_out] <= True;
+		end else if (full_margin == 1) begin 
+			if (new_head == new_new_tail_r[fifo_out]) begin
+				not_full[fifo_out] <= False;
+			end else begin
+				not_full[fifo_out] <= True;	
+			end
+		end else if (full_margin == 2) begin 	
+			if (new_head == new_new_tail_r[fifo_out] || new_head == new_new_new_tail_r[fifo_out] ) begin
+				not_full[fifo_out] <= False;
+			end else begin
+				not_full[fifo_out] <= True;	
+			end		
+		end else if (full_margin == 3) begin 	
+			if (new_head == new_new_tail_r[fifo_out] || new_head == new_new_new_tail_r[fifo_out] || new_head == new_new_new_new_tail_r[fifo_out]) begin
+				not_full[fifo_out] <= False;
+			end else begin
+				not_full[fifo_out] <= True;	
+			end		
+		end				
+		//end change
 	if(new_head == tails[fifo_out]) begin // I just became empty
 	  not_empty[fifo_out] <= False;
 	  `DBG_DETAIL(("Queue %d: Became EMPTY", fifo_out ));
@@ -149,11 +200,12 @@ module mkMultiFIFOMem_HeadTailsInRegs#( Integer full_margin )
 
   method Action enq(Bit#(TLog#(num_fifos)) fifo_in, fifo_data_t data_in);     // Enqueues flit into fifo fifo_in
     //dynamicAssert(fifo_in < fromInteger(valueOf(num_fifos)), "fifo_in >= num_fifos: Trying to index non-existent FIFO in MultiFIFOMem!");
-    if(!not_full[fifo_in]) begin
+    if(!not_full_dyn[fifo_in]) begin
       `DBG(("2Enqueing to full FIFO - fifo_in:%d", fifo_in));
       `DBG(("Data dump of element that filled FIFO: %x", data_in));
     end
-    dynamicAssert(not_full[fifo_in], "Enqueing to full FIFO in MultiFIFOMem!");
+    //dynamicAssert(not_full[fifo_in], "Enqueing to full FIFO in MultiFIFOMem!");//comment by zhipeng
+    dynamicAssert(not_full_dyn[fifo_in], "Enqueing to full FIFO in MultiFIFOMem!");//changed by zhipeng
     //let vcWrPtr = tails.read_ports[0].read(fl.vc);
     let fifoWrPtr = tails[fifo_in];
     let enqAddr = {fifo_in, fifoWrPtr};
@@ -161,6 +213,7 @@ module mkMultiFIFOMem_HeadTailsInRegs#( Integer full_margin )
     fifoMem.write(enqAddr, data_in);       // Enqueue data
     //fifoMem.upd(enqAddr, data_in);       // Enqueue data
     //tails.write(fl.vc, vcWrPtr+1); // Advance write pointer
+/*
     let next_tail = fifoWrPtr+1;
     let next_next_tail = next_tail + 1;
     let next_next_next_tail = next_next_tail + 1;
@@ -169,6 +222,23 @@ module mkMultiFIFOMem_HeadTailsInRegs#( Integer full_margin )
     new_new_tail <= next_tail+1;
     new_new_new_tail <= next_next_tail+1;
     new_new_new_new_tail <= next_next_next_tail+1;
+*/ //comment by zhipeng
+//changed by zhipeng
+    let next_tail = incr(fifoWrPtr);
+    let next_next_tail = incr(next_tail);
+    let next_next_next_tail = incr(next_next_tail);
+    let next_next_next_next_tail = incr(next_next_next_tail);
+    cur_tail <= fifoWrPtr;
+    new_tail <= next_tail;
+    new_new_tail <= next_next_tail;
+    new_new_new_tail <= next_next_next_tail;
+    new_new_new_new_tail <= next_next_next_next_tail;
+
+    new_tail_r[fifo_in] <= next_tail;
+    new_new_tail_r[fifo_in] <= next_next_tail;
+    new_new_new_tail_r[fifo_in] <= next_next_next_tail;
+    new_new_new_new_tail_r[fifo_in] <= next_next_next_next_tail;
+//end change
     //tails[fifo_in] <= next_tail; // Advance write pointer
 
     // update wire used by deq
@@ -196,7 +266,8 @@ module mkMultiFIFOMem_HeadTailsInRegs#( Integer full_margin )
     let data = fifoMem.read(deqAddr);       // Dequeue data
     `DBG_DETAIL(("Queue %d: Dequeueing %x", fifo_out, data ));
     //heads.write(fl.vc, vcRdPtr+1);   // Advance read pointer
-    let next_head = fifoRdPtr+1;
+    //let next_head = fifoRdPtr+1; //comment by zhipeng
+    let next_head = incr(fifoRdPtr);//changed by zhipeng
     cur_head <= fifoRdPtr;
     new_head <= next_head;
     //heads[fifo_out] <= next_head;   // Advance read pointer
@@ -232,7 +303,7 @@ endmodule
 // More parameterized version
 module mkMultiFIFOMem_HeadTailsInLUTRAM#( Integer full_margin )
                                         (MultiFIFOMem#(fifo_data_t, num_fifos, fifo_depth))
-  provisos( Bits#(fifo_data_t, fifo_data_width_t) );
+  provisos( Bits#(fifo_data_t, fifo_data_width_t));
   String name = "MultiFIFOMem";
   
   //typedef Bit#(TLog#(num_fifos))                              FIFOIdx_t;
@@ -250,7 +321,8 @@ module mkMultiFIFOMem_HeadTailsInLUTRAM#( Integer full_margin )
   RF_16ports#( Bit#(TLog#(num_fifos)), Bit#(TLog#(fifo_depth)) )  tails <- mkRF_16ports();
   Vector#(num_fifos, Reg#(Bool))          not_empty <- replicateM(mkConfigReg(False));
   Vector#(num_fifos, Reg#(Bool))          not_full  <- replicateM(mkConfigReg(True));
-  
+ 
+  Vector#(num_fifos, Reg#(Bool))          not_full_dyn  <- replicateM(mkConfigReg(True)); //added by zhipeng
   // Wires to have enq and deq communicate to determine which queues are empty
   Wire#(Maybe#( Bit#(TLog#(num_fifos)) ))                wrFIFO <- mkDWire(Invalid);  
   Wire#(Maybe#( Bit#(TLog#(num_fifos)) ))                rdFIFO <- mkDWire(Invalid);  
@@ -265,10 +337,28 @@ module mkMultiFIFOMem_HeadTailsInLUTRAM#( Integer full_margin )
   Wire#(Bit#(TLog#(fifo_depth)))                        new_new_new_tail <- mkDWire(0);  
   Wire#(Bit#(TLog#(fifo_depth)))                        new_new_new_new_tail <- mkDWire(0);  
 
+//added by zhipeng
+  Vector#(num_fifos, Reg#( Bit#(TLog#(fifo_depth)) ))     new_tail_r    <- replicateM(mkConfigReg(0));
+  Vector#(num_fifos, Reg#( Bit#(TLog#(fifo_depth)) ))     new_new_tail_r    <- replicateM(mkConfigReg(0));
+  Vector#(num_fifos, Reg#( Bit#(TLog#(fifo_depth)) ))     new_new_new_tail_r    <- replicateM(mkConfigReg(0));
+  Vector#(num_fifos, Reg#( Bit#(TLog#(fifo_depth)) ))     new_new_new_new_tail_r    <- replicateM(mkConfigReg(0));
+//end add
+
   Wire#(Bit#(TLog#(fifo_depth)))                        cur_tail <- mkDWire(0);  
   Wire#(Bit#(TLog#(fifo_depth)))                        cur_head <- mkDWire(0);
   //Wire#(QueuePtr_t)                                   wrPtr <- mkDWire(0);  
   //Wire#(qPtr)                                      rdPtr <- mkDWire(0);  
+//added by zhipeng
+  Bit#(TLog#(fifo_depth)) fifoSize = fromInteger(valueof(TSub#(fifo_depth,1)));
+
+
+  function Bit#(TLog#(fifo_depth)) incr(Bit#(TLog#(fifo_depth)) i);
+	if (i == fifoSize)
+		return 0;
+	else
+    	return i+1;
+  endfunction
+//end add
 
   rule update_heads_tails(True);
     // update tail
@@ -287,6 +377,13 @@ module mkMultiFIFOMem_HeadTailsInLUTRAM#( Integer full_margin )
 	not_empty[fifo_in] <= True;
 	Bit#(TLog#(fifo_depth)) cur_head;
 	cur_head = heads.read_ports[0].read(fifo_in);
+
+//added by zhipeng
+	//no matter what margin is, the "true" full is new_tail == heads
+	if(new_tail == cur_head) begin  //Added by zhipeng
+		not_full_dyn[fifo_in] <= False;
+	end
+//end add
 
 	if(full_margin == 0) begin // no margin, full actually corresponds to full signal
 	  if(new_tail == cur_head) begin  // I enqueued and fifo became full
@@ -315,7 +412,31 @@ module mkMultiFIFOMem_HeadTailsInLUTRAM#( Integer full_margin )
     if(isValid(rdFIFO)) begin
       let fifo_out = rdFIFO.Valid;
       if(!isValid(wrFIFO) || fifo_out != wrFIFO.Valid) begin // only need to update if data wasn't enqueued to the same fifo
-	not_full[fifo_out] <= True;
+//	not_full[fifo_out] <= True;//comment by zhipeng
+		//changed by zhipeng, We can't say the fifo is not_full by just dequeuing one flit. Because of the margin.
+		not_full_dyn[fifo_out] <= True;	
+		if (full_margin == 0) begin 
+			not_full[fifo_out] <= True;
+		end else if (full_margin == 1) begin 
+			if (new_head == new_new_tail_r[fifo_out]) begin
+				not_full[fifo_out] <= False;
+			end else begin
+				not_full[fifo_out] <= True;	
+			end
+		end else if (full_margin == 2) begin 	
+			if (new_head == new_new_tail_r[fifo_out] || new_head == new_new_new_tail_r[fifo_out] ) begin
+				not_full[fifo_out] <= False;
+			end else begin
+				not_full[fifo_out] <= True;	
+			end		
+		end else if (full_margin == 3) begin 	
+			if (new_head == new_new_tail_r[fifo_out] || new_head == new_new_new_tail_r[fifo_out] || new_head == new_new_new_new_tail_r[fifo_out]) begin
+				not_full[fifo_out] <= False;
+			end else begin
+				not_full[fifo_out] <= True;	
+			end		
+		end				
+		//end change
 	Bit#(TLog#(fifo_depth)) cur_tail;
 	cur_tail = tails.read_ports[0].read(fifo_out);
 	if(new_head == cur_tail) begin // I just became empty
@@ -329,7 +450,8 @@ module mkMultiFIFOMem_HeadTailsInLUTRAM#( Integer full_margin )
 
   method Action enq(Bit#(TLog#(num_fifos)) fifo_in, fifo_data_t data_in);     // Enqueues flit into fifo fifo_in
     //dynamicAssert(fifo_in < fromInteger(valueOf(num_fifos)), "fifo_in >= num_fifos: Trying to index non-existent FIFO in MultiFIFOMem!");
-    dynamicAssert(not_full[fifo_in], "Enqueing to full FIFO in MultiFIFOMem!");
+   // dynamicAssert(not_full[fifo_in], "Enqueing to full FIFO in MultiFIFOMem!");//changed by zhipeng
+    dynamicAssert(not_full_dyn[fifo_in], "Enqueing to full FIFO in MultiFIFOMem!");//changed by zhipeng
     //let vcWrPtr = tails.read_ports[0].read(fl.vc);
 
     Bit#(TLog#(fifo_depth)) fifoWrPtr;
@@ -340,6 +462,7 @@ module mkMultiFIFOMem_HeadTailsInLUTRAM#( Integer full_margin )
     fifoMem.write(enqAddr, data_in);       // Enqueue data
     //fifoMem.upd(enqAddr, data_in);       // Enqueue data
     //tails.write(fl.vc, vcWrPtr+1); // Advance write pointer
+/*
     let next_tail = fifoWrPtr+1;
     let next_next_tail = next_tail + 1;
     let next_next_next_tail = next_next_tail + 1;
@@ -349,7 +472,23 @@ module mkMultiFIFOMem_HeadTailsInLUTRAM#( Integer full_margin )
     new_new_new_tail <= next_next_tail+1;
     new_new_new_new_tail <= next_next_next_tail+1;
     //tails[fifo_in] <= next_tail; // Advance write pointer
+*/ //commented by zhipeng
+//changed by zhipeng
+    let next_tail = incr(fifoWrPtr);
+    let next_next_tail = incr(next_tail);
+    let next_next_next_tail = incr(next_next_tail);
+    let next_next_next_next_tail = incr(next_next_next_tail);
+    cur_tail <= fifoWrPtr;
+    new_tail <= next_tail;
+    new_new_tail <= next_next_tail;
+    new_new_new_tail <= next_next_next_tail;
+    new_new_new_new_tail <= next_next_next_next_tail;
 
+    new_tail_r[fifo_in] <= next_tail;
+    new_new_tail_r[fifo_in] <= next_next_tail;
+    new_new_new_tail_r[fifo_in] <= next_next_next_tail;
+    new_new_new_new_tail_r[fifo_in] <= next_next_next_next_tail;
+//end change
     // update wire used by deq
     wrFIFO <= tagged Valid fifo_in;
     
@@ -379,7 +518,8 @@ module mkMultiFIFOMem_HeadTailsInLUTRAM#( Integer full_margin )
     let data = fifoMem.read(deqAddr);       // Dequeue data
     `DBG_DETAIL(("Queue %d: Dequeueing %x", fifo_out, data ));
     //heads.write(fl.vc, vcRdPtr+1);   // Advance read pointer
-    let next_head = fifoRdPtr+1;
+    //let next_head = fifoRdPtr + 1;//comment by zhipeng
+    let next_head = incr(fifoRdPtr);//changed by zhipeng
     cur_head <= fifoRdPtr;
     new_head <= next_head;
     //heads[fifo_out] <= next_head;   // Advance read pointer
@@ -420,15 +560,15 @@ endmodule
 //typedef Bit#(128) Data_t;
 
 typedef 1 NumFIFOs;
-typedef 4 FIFODepth;
+typedef 9 FIFODepth;
 typedef Bit#(128) Data_t;
 
 typedef MultiFIFOMem#(Data_t, NumFIFOs, FIFODepth) MultiFIFOMemSynth; 
 
 (* synthesize *)
 module mkMultiFIFOMemSynth(MultiFIFOMemSynth);
-  //MultiFIFOMemSynth mf <- mkMultiFIFOMem(True /*storeHeadsTailsInLUTRAM*/);
-  MultiFIFOMemSynth mf <- mkMultiFIFOMem(False /*storeHeadsTailsInLUTRAM*/, 0);
+  //MultiFIFOMemSynth mf <- mkMultiFIFOMem(True );
+  MultiFIFOMemSynth mf <- mkMultiFIFOMem(False , 0);
   //MultiFIFOMemSynth mf <- mkMultiFIFOMemHeadTailsInLUTRAM();
   return mf;
  
@@ -492,4 +632,3 @@ module mkMultiFIFOMemTest(Empty);
 
   mkAutoFSM(test_seq);
 endmodule
-

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 """
 SYNOPSIS
     %prog [-h,--help] [-v,--verbose] [--version]
@@ -2852,7 +2852,7 @@ if __name__ == '__main__':
 	                   help='specifies number of routers in each column (only used for mesh and torus)');
 	parser.add_option ('-v', '--num_vcs', action='store', type="int", default=2, help='specifies number of virtual channels');
 	parser.add_option ('-a', '--alloc_type', action='store', type="string", default='SepIFRoundRobin', 
-	                   help='specifies type of allocator (can take values "SepIFRoundRobin", "SepOFRoundRobin", "SepIFStatic", "SepOFStatic", "Memocode")');
+	                   help='specifies type of allocator (can take values "SepIFRoundRobin", "SepOFRoundRobin", "SepIFiSLIP", "SepOFiSLIP", "SepIFStatic", "SepOFStatic", "Memocode")');
 	parser.add_option ('--use_virtual_links', action='store_true', default=False, help='Enables locking of virtual links (VC+OutPort) in the presence of multi-flit packets.');
 	# parser.add_option ('-a', '--alloc_type', action='store', type="string", default='sep_if_', help='specifies type of allocator (can take values:\n"sep_if_rr" (Separable Input-First Round-Robin Allocator),\n"sep_of_rr" (Separable Output-First Round-Robin Allocator),\n"sep_if_st" (Separable Input-First Static Allocator),\n"sep_of_st" (Separable Output-First Static Allocator),\n"memocode"  (Exhaustive maximal allocator used in memocode design contest)')
 	parser.add_option ('-d', '--flit_buffer_depth', action='store', type="int", default=4, help='specifies depth of flit buffers');

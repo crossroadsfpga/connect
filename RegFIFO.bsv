@@ -17,13 +17,21 @@ module mkRegFIFO#(Bool guarded)
 		      
 
     FIFOCountIfc#(value_t, depth) fifo;
-
+/*
     if(genC) begin
 	fifo <- mkGFIFOCountWrap(guarded); 
     end
     else begin
 	fifo <- mkRegFIFO_named("anonymous", guarded);
     end
+*/ //comment by zhipeng for testing the synth results
+
+    //if(genC) begin
+	fifo <- mkGFIFOCountWrap(guarded); 
+    //end
+    //else begin
+	//fifo <- mkRegFIFO_named("anonymous", guarded);
+    //end
   
     return fifo;
 endmodule
@@ -91,9 +99,16 @@ module mkRegFIFO_named #(String name, Bool guarded)
 
   staticAssert( valueOf(index_nt) > 0, "Index width must be > 0" );
 
+//changed by zhipeng
+  Bit#(index_nt) fifoSize = fromInteger(valueof(TSub#(depth,1)));
+
   function Bit#(index_nt) incr(Bit#(index_nt) i);
-    return i+1;
+	if (i == fifoSize)
+		return 0;
+	else
+    	return i+1;
   endfunction
+//end change
 
   function Bit#(index_nt) decr(Bit#(index_nt) i);
     return i-1;
@@ -210,7 +225,7 @@ endmodule
 ///////////////////////////////////////////////
 // LUT FIFO test
 
-typedef 4 FIFODepth;
+typedef 8 FIFODepth;
 typedef Bit#(32) Data_t;
 typedef FIFOCountIfc#(Data_t, FIFODepth) RegFIFOSynth;
 

@@ -1,1 +1,8 @@
 *.hex
+
+.vscode/
+build/
+src/
+test/
+scripts/
+obj/

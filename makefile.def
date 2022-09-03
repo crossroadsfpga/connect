@@ -1,29 +1,30 @@
 ####### Bluespec defs ########
 BSC 		= bsc
-SCRATCH         = ~/scratch/mpapamic/
+#SCRATCH         = ~/scratch/zzhao1/
+SCRATCH         = ./
 VLOG 		= build
 XST_DIR 	= ${SCRATCH}/xst_runs
 DC_DIR 	        = ${SCRATCH}/dc_runs
-#XST_DIR 	= /scratch/mpapamic/xst_runs
-#XST_DIR 	= /home/mpapamic/xst_runs
-#SYN_DIR 	= /scratch/mpapamic/synplify_runs
-SYN_DIR 	= /home/mpapamic/synplify_runs
+#XST_DIR 	= /scratch/zzhao1/xst_runs
+#XST_DIR 	= /home/zzhao1/xst_runs
+#SYN_DIR 	= /scratch/zzhao1/synplify_runs
+SYN_DIR 	= /home/zzhao1/synplify_runs
 VCS_DIR 	= ${SCRATCH}/vcs_runs
 #VCS_DIR 	= ./vcs_runs
-#VCS_DIR 	= /scratch/mpapamic/vcs_runs
+#VCS_DIR 	= /scratch/zzhao1/vcs_runs
 OBJDIR 		= ./obj
 IMPORT_DIRS     = $(shell find . -name ".svn" -prune -o -name "build" -prune -o -type d -exec echo -ne "{}:" \;)
 ALLDIRS		= $(shell find . -name ".svn" -prune -o -name "*.c*" -exec dirname {} \; | uniq)
 IMPORT 		= $(OBJDIR):${BLUESPEC_HOME}/lib/Prelude:${BLUESPEC_HOME}/lib/Libraries:$(IMPORT_DIRS)+
 # With this set of options I was able to compile the largest design. (16x16, 8VCs). Make sure you run on machines with 16GB memory.  16x16 8VCs requires 11.4GB of RAM.
-#GLOBAL_FLAGS    = -opt-undetermined-vals -unspecified-to 0 -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K3072M -H8192M -RTS -v95  -no-warn-action-shadowing
+#GLOBAL_FLAGS    = -opt-undetermined-vals -unspecified-to 0 -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K12288M -H8192M -RTS -v95 -wait-for-license -no-warn-action-shadowing
 # Erics flags
-GLOBAL_FLAGS    = -relax-method-earliness -opt-undetermined-vals -unspecified-to X -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K3072M -H8192M -RTS -v95  -no-warn-action-shadowing
-#GLOBAL_FLAGS    = -opt-undetermined-vals -unspecified-to X -scheduler-effort 1 -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K3072M -H8192M -RTS -v95  -no-warn-action-shadowing
-#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K1024M -RTS -v95   -no-warn-action-shadowing
-#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95   -no-warn-action-shadowing
-#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -Xc++ -fPIC -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95   -no-warn-action-shadowing
-#GLOBAL_FLAGS 	= -unspecified-to X -steps-warn-interval 1000 -v -show-stats -scheduler-effort 0 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95   -no-warn-action-shadowing
+GLOBAL_FLAGS    = -relax-method-earliness -opt-undetermined-vals -unspecified-to X -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K12288M -H8192M -RTS -v95 -wait-for-license -no-warn-action-shadowing
+#GLOBAL_FLAGS    = -opt-undetermined-vals -unspecified-to X -scheduler-effort 1 -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K12288M -H8192M -RTS -v95 -wait-for-license -no-warn-action-shadowing
+#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K1024M -RTS -v95  -wait-for-license -no-warn-action-shadowing
+#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95  -wait-for-license -no-warn-action-shadowing
+#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -Xc++ -fPIC -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95  -wait-for-license -no-warn-action-shadowing
+#GLOBAL_FLAGS 	= -unspecified-to X -steps-warn-interval 1000 -v -show-stats -scheduler-effort 0 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95  -wait-for-license -no-warn-action-shadowing
 BSC_vsim  	= bsc $(GLOBAL_FLAGS) -verilog -steps 10000000
 #BSC_vsim  	= bsc $(GLOBAL_FLAGS) -verilog -g 
 BSC_bsim  	= bsc $(GLOBAL_FLAGS) -show-schedule -D __NOSYNTH__=1 -sim +RTS -K50000000 -RTS -steps 10000000 -g

@@ -41,7 +41,7 @@ typedef MultiFIFOMem#(Flit_t, 1, FlitBufferDepth) InputQueue;
 module mkInputQueue(InputQueue);
   InputQueue inputQueue_ifc;
   if ( `PIPELINE_LINKS ) begin  // Add 1 cycle margin to FIFOs for credit that might be in transit
-    inputQueue_ifc <- mkMultiFIFOMem(False /*storeHeadsTailsInLUTRAM*/, 1 /* full_margin */ );
+    inputQueue_ifc <- mkMultiFIFOMem(False /*storeHeadsTailsInLUTRAM*/, 2 /* full_margin */ );//change 1 to 2 by zhipeng 6/16/2016
   end else begin
     inputQueue_ifc <- mkMultiFIFOMem(False /*storeHeadsTailsInLUTRAM*/, 0 /* full_margin */ );
   end
@@ -248,20 +248,18 @@ module mkIQRouterCoreSimple(RouterCoreSimple);
   for(Integer i=0; i<valueOf(NumInPorts);i=i+1) begin
     let not_empty = flitBuffers_notEmpty[i];
     let out_port = outPortFIFOs_first[i];
-
-    if(not_empty && simple_credits[out_port]) begin
-
-      if(`USE_VIRTUAL_LINKS) begin
-	let is_locked = lockedVL[out_port];
-	if( !is_locked || (is_locked && inPortVL[out_port] == fromInteger(i) ) ) begin
-	  eligIO[i] = replicate(False);
-          eligIO[i][out_port] = True; 
-	end
-      end else begin
-        eligIO[i][out_port] = True; 
-      end
-
-    end
+		if(not_empty && simple_credits[out_port]) begin
+      		if(`USE_VIRTUAL_LINKS) begin
+				let is_locked = lockedVL[out_port];
+				if( !is_locked || (is_locked && inPortVL[out_port] == fromInteger(i) ) ) begin
+	 				eligIO[i] = replicate(False);
+					eligIO[i][out_port] = True; 
+				end
+      		end else begin
+        		eligIO[i][out_port] = True; 
+      		end
+    	end
+//	end
   end
 
   // -- End Option 1 -- 
@@ -311,12 +309,25 @@ module mkIQRouterCoreSimple(RouterCoreSimple);
 	let tmp = flitBuffers[i].notEmpty(); // double check that there is a flit - VC is always 0 for input-queued router 
 	let has_flits = tmp[0]; // double check that there is a flit - VC is always 0 for input-queued router 
 	let has_credits = simple_credits[selectedOut.Valid]; // double check that credits still exist. Alternatively change margin in mkMultiFIFOMem
-	if (has_flits && has_credits) begin
-	  activeInPorts[i] = True;
-	  //InPort_t inp = fromInteger(i);
-	  //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
-	  activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
-	end
+	//if (has_flits && has_credits) begin //comment by zhipeng 10/14/2015
+	if(`USE_VIRTUAL_LINKS) begin//added by zhipeng 06/21/2016 to double check the vl
+		let is_locked = lockedVL[selectedOut.Valid];
+		if( !is_locked || (is_locked && inPortVL[selectedOut.Valid] == fromInteger(i) ) ) begin
+			if (has_flits && has_credits && outPortFIFOs_first[i] == selectedOut.Valid) begin
+			  activeInPorts[i] = True;
+			  //InPort_t inp = fromInteger(i);
+			  //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
+			  activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
+			end
+		end//end add
+	end else begin
+		if (has_flits && has_credits && outPortFIFOs_first[i] == selectedOut.Valid) begin
+		  activeInPorts[i] = True;
+		  //InPort_t inp = fromInteger(i);
+		  //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
+		  activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
+		end
+	end//end virtual link
       end
 
     end
@@ -343,13 +354,13 @@ module mkIQRouterCoreSimple(RouterCoreSimple);
   rule gatherFlitsToSend(True);
     for(Integer i=0; i<valueOf(NumInPorts);i=i+1) begin
       if(activeInPorts[i]) begin
-	let fl <- flitBuffers[i].deq(0);  // VC is always 0 for input-queued router
+			let fl <- flitBuffers[i].deq(0);  // VC is always 0 for input-queued router
 	//if(fl.vc != activeVC_perIn[i].Valid) begin
        	//   `DBG_ID(("Selected VC %d does not match flit VC %d for input %d", activeVC_perIn[i].Valid, fl.vc, i));
 	//end 
-	hasFlitsToSend_perIn[i] <= tagged Valid fl;
+			hasFlitsToSend_perIn[i] <= tagged Valid fl;
 	//let out_port = outPortFIFOs_first[i][activeVC_perIn[i].Valid];
-        outPortFIFOs[i].deq();
+        	outPortFIFOs[i].deq();
 	//$display(" ---> Router: %0d - dequeing from outPortFIFOs[%0d][%0d]", id, i, activeVC_perIn[i].Valid);
 
 	//if(fl.out_p != out_port) begin

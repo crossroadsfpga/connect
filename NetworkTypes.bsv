@@ -29,7 +29,7 @@ import FShow::*;
 ////////////////////////////////////////////////////////////////////
 // Type Definitions
 ////////////////////////////////////////////////////////////////////
-typedef enum{ SepIFRoundRobin, SepOFRoundRobin, SepIFStatic, SepOFStatic, Memocode } AllocType_t deriving(Bits, Eq);
+typedef enum{ SepIFRoundRobin, SepOFRoundRobin, SepIFiSLIP, SepOFiSLIP, SepIFStatic, SepOFStatic, Memocode } AllocType_t deriving(Bits, Eq);
 
 typedef Bit#(n) NumTypeParam#(numeric type n);
 // Width of data field in each flit

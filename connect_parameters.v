@@ -1,0 +1,4 @@
+`define PKT_SIZE 100000
+`define SIM_TIME 100000
+`define TIME_START 20000
+`define TIME_END 100000

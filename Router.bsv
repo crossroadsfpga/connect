@@ -363,32 +363,32 @@ module mkRouterCore(RouterCore);
     //let not_empty = flitBuffers[i].notEmpty();
     let not_empty = flitBuffers_notEmpty[i];
     for(Integer v=valueOf(NumVCs)-1; v>=0; v=v-1) begin  // lowest VC has highest priority
-      if(not_empty[v]) begin
-	//let out_port = outPortFIFOs[i][v].first();
-	let out_port = outPortFIFOs_first[i][v];
-
-        if(`USE_VIRTUAL_LINKS) begin
-	  if(credits[out_port][v] > 0) begin
-	    let is_locked = lockedVL[out_port][v];
-	    if( !is_locked || (is_locked && inPortVL[out_port][v] == fromInteger(i) ) )  begin
-	      activeVC_perIn_s0[i] = tagged Valid fromInteger(v);
-	      //activeVC_perOut[out_port] = tagged Valid fromInteger(v);
-	      //eligIO[i] = unpack(0);
-	      eligIO[i] = replicate(False);
-	      eligIO[i][out_port] = True;
-	    end
-	  end
-	end else begin
-	  if(credits[out_port][v] > 0) begin
-	    activeVC_perIn_s0[i] = tagged Valid fromInteger(v);
-	    //activeVC_perOut[out_port] = tagged Valid fromInteger(v);
-	    eligIO[i] = replicate(False);
-	    eligIO[i][out_port] = True;
-	  end
-        end
-
-      end
-    end
+	//for(Integer v=0; v<valueOf(NumVCs); v=v+1) begin  // highest VC has highest priority
+		if(not_empty[v]) begin
+			//let out_port = outPortFIFOs[i][v].first();
+			let out_port = outPortFIFOs_first[i][v];
+				if(`USE_VIRTUAL_LINKS) begin
+			  		if(credits[out_port][v] > 0) begin
+						let is_locked = lockedVL[out_port][v];
+						if( !is_locked || (is_locked && inPortVL[out_port][v] == fromInteger(i) ) )  begin
+				  			activeVC_perIn_s0[i] = tagged Valid fromInteger(v);
+				  			//activeVC_perOut[out_port] = tagged Valid fromInteger(v);
+				  			//eligIO[i] = unpack(0);
+				  			eligIO[i] = replicate(False);
+				  			eligIO[i][out_port] = True;
+						end
+			  		end
+				end else begin
+			  		if(credits[out_port][v] > 0) begin
+						activeVC_perIn_s0[i] = tagged Valid fromInteger(v);
+						//activeVC_perOut[out_port] = tagged Valid fromInteger(v);
+						eligIO[i] = replicate(False);
+			   		 	eligIO[i][out_port] = True;
+			  		end
+			   end
+//			end
+		end
+	end
   end
   // -- End Option 1 -- 
 
@@ -416,7 +416,12 @@ module mkRouterCore(RouterCore);
       selectedIO[i]     = readVReg(selectedIO_reg[i]);
       activeVC_perIn[i] = activeVC_perIn_reg[i];
     end
-  end else begin
+  end else if(`PIPELINE_ALLOCATOR) begin//added by zhipeng, for pipelining alloc, we still want to latch the selected VC
+    for(Integer i=0; i<valueOf(NumInPorts);i=i+1) begin
+      selectedIO[i]     = readVReg(selectedIO_s0[i]);
+      activeVC_perIn[i] = activeVC_perIn_reg[i];
+    end
+  end else begin//end add(06/21/2016)
     for(Integer i=0; i<valueOf(NumInPorts);i=i+1) begin
       selectedIO[i]     = readVReg(selectedIO_s0[i]);
       activeVC_perIn[i] = activeVC_perIn_s0[i];
@@ -440,12 +445,25 @@ module mkRouterCore(RouterCore);
 	  let not_empty = flitBuffers[i].notEmpty(); // double check that there is a flit
 	  let has_flits    = not_empty[selVC];
 	  let has_credits = credits[selectedOut.Valid][selVC] > 0; // double check that credits still exist. Alternatively change margin in mkMultiFIFOMem
-	  if (has_flits && has_credits) begin
-	    activeInPorts[i] = True;
-	    //InPort_t inp = fromInteger(i);
-	    //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
-	    activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
-	  end
+	  //if (has_flits && has_credits) begin //comment by zhipeng
+		if(`USE_VIRTUAL_LINKS) begin//added by zhipeng 06/21/2016 to double check the vl
+			let is_locked = lockedVL[selectedOut.Valid][selVC];
+			if( !is_locked || (is_locked && inPortVL[selectedOut.Valid][selVC] == fromInteger(i) ) ) begin
+				if (has_flits && has_credits && outPortFIFOs_first[i][selVC] == selectedOut.Valid) begin
+				  activeInPorts[i] = True;
+				  //InPort_t inp = fromInteger(i);
+				  //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
+				  activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
+				end
+			end//end add
+		end else begin
+			if (has_flits && has_credits && outPortFIFOs_first[i][selVC] == selectedOut.Valid) begin
+				activeInPorts[i] = True;
+				//InPort_t inp = fromInteger(i);
+				//activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
+				activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
+		  	end
+		end
 	end
       end
 
@@ -464,10 +482,15 @@ module mkRouterCore(RouterCore);
     if(`PIPELINE_CORE) begin
     //if(PipelineAllocator) begin
       for(Integer i=0; i<valueOf(NumInPorts);i=i+1) begin
-	writeVReg(selectedIO_reg[i], readVReg(selectedIO_s0[i]));
-	activeVC_perIn_reg[i] <= activeVC_perIn_s0[i];
+		writeVReg(selectedIO_reg[i], readVReg(selectedIO_s0[i]));
+		activeVC_perIn_reg[i] <= activeVC_perIn_s0[i];
       end
     end
+	else if(`PIPELINE_ALLOCATOR) begin//added by zhipeng, for pipelining alloc, we still want to latch the selected VC
+      for(Integer i=0; i<valueOf(NumInPorts);i=i+1) begin
+		activeVC_perIn_reg[i] <= activeVC_perIn_s0[i];
+      end
+	end//end add(06/21/2016)
   endrule
 
   rule gatherFlitsToSend(True);
@@ -709,6 +732,7 @@ endfunction
 	  Credit_t cr_out = Invalid;
 	  if (activeInPorts[i]) begin
 	    cr_out = activeVC_perIn[i];
+	    //cr_out = activeVC_perIn_s0[i];
 	  end
 	  return cr_out;
 	endmethod

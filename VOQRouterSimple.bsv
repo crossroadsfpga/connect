@@ -100,7 +100,7 @@ module mkInputVOQueues(InputVOQueues);
   // not needed because I double-check credits when pipelining. Enable if the credit-check is removed.
   //inputVOQueues_ifc <- mkMultiFIFOMem(False /*storeHeadsTailsInLUTRAM*/, getPipeLineStages() /*full_margin*/);
   if ( `PIPELINE_LINKS ) begin  // Add 1 cycle margin to FIFOs for credit that might be in transit
-    inputVOQueues_ifc <- mkMultiFIFOMem(False /*storeHeadsTailsInLUTRAM*/, 1 /*full_margin*/); 
+    inputVOQueues_ifc <- mkMultiFIFOMem(False /*storeHeadsTailsInLUTRAM*/, 2 /*full_margin*/);//change 1 to 2 by zhipeng 6/16/2016 
   end else begin
     inputVOQueues_ifc <- mkMultiFIFOMem(False /*storeHeadsTailsInLUTRAM*/, 0 /*full_margin*/); 
   end
@@ -196,24 +196,26 @@ module mkVOQRouterCoreSimple(RouterCoreSimple);
     if(`USE_VIRTUAL_LINKS) begin
       let not_empty = flitVOQBuffers_notEmpty[i];
       for(Integer o=0; o<valueOf(NumOutPorts); o=o+1) begin // filter out Outputs with no credits
-	let is_locked = lockedVL[o];
-	if(not_empty[o] && simple_credits[o]) begin // not empty and has credits 
-	  if( !is_locked || (is_locked && inPortVL[o] == fromInteger(i) ) ) begin
-	    eligIO[i] = replicate(False);
-	    eligIO[i][o] = True;
-	  end
-	end else begin // is empty or doesn't have credits
-	  eligIO[i][o] = False;
-	end
-      end
-    end else begin
+		let is_locked = lockedVL[o];
+		if(not_empty[o] && simple_credits[o]) begin // not empty and has credits 
+	  		if( !is_locked || (is_locked && inPortVL[o] == fromInteger(i) ) ) begin
+	    	//eligIO[i] = replicate(False);//comment by zhipeng(06/15/2016) That means the higher o has higher priority.
+										//Even if there is a request from i to lower o, because the higher o locks the
+										//Link, the request from i to lower o will be discard. That wastes cycles. 
+	    		eligIO[i][o] = True;
+	  		end 
+		end else begin // is empty or doesn't have credits
+	  		eligIO[i][o] = False;
+		end
+     end
+   end else begin
       eligIO[i] = flitVOQBuffers_notEmpty[i];
       for(Integer o=0; o<valueOf(NumOutPorts); o=o+1) begin // filter out Outputs with no credits
-	if(!simple_credits[o]) begin
-	  eligIO[i][o] = False;
-	end
+		if(!simple_credits[o]) begin
+	  		eligIO[i][o] = False;
+		end
       end
-    end
+   end
   end
   // -- End Option 1 -- 
 
@@ -254,12 +256,26 @@ module mkVOQRouterCoreSimple(RouterCoreSimple);
 	let not_empty   = flitVOQBuffers[i].notEmpty(); // double check that there is a flit
 	let has_flits   = not_empty[selectedOut.Valid];
 	let has_credits = simple_credits[selectedOut.Valid]; // double check that credits still exist. Alternatively change margin in mkMultiFIFOMem
-	if (has_flits && has_credits) begin
-	  activeInPorts[i] = True;
-	  activeVOQ_perIn[i] = selectedOut;
-	  //InPort_t inp = fromInteger(i);
-	  //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
-	  activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
+	if(`USE_VIRTUAL_LINKS) begin//added by zhipeng 06/21/2016 to double check the vl
+		let is_locked = lockedVL[selectedOut.Valid];
+		if( !is_locked || (is_locked && inPortVL[selectedOut.Valid] == fromInteger(i) ) ) begin
+			if (has_flits && has_credits) begin
+			  activeInPorts[i] = True;
+			  activeVOQ_perIn[i] = selectedOut;
+			  //InPort_t inp = fromInteger(i);
+			  //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
+			  activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
+			end
+		end//end add
+	end else begin
+		if (has_flits && has_credits) begin//comment by zhipeng
+		//if (has_flits && has_credits && outPortFIFOs_first[i] == selectedOut.Valid) begin
+		  activeInPorts[i] = True;
+		  activeVOQ_perIn[i] = selectedOut;
+		  //InPort_t inp = fromInteger(i);
+		  //activeIn_perOut[selectedOut.Valid] = tagged Valid inp;
+		  activeIn_perOut[selectedOut.Valid] = tagged Valid fromInteger(i);
+		end
 	end
       end
     end

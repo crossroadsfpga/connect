@@ -135,12 +135,12 @@ endfunction
 
 
 interface Arbiter#(type n);
-  (* always_ready *) method Vector#(n, Bool) select( Vector#(n, Bool) requests );
+  (* always_ready *) method ActionValue#(Vector#(n, Bool)) select( Vector#(n, Bool) requests );
   (* always_ready *) method Action           next();
 endinterface
  
 module mkStaticPriorityArbiter(Arbiter#(n));
-  method Vector#(n, Bool) select( Vector#(n, Bool) requests );
+  method ActionValue#(Vector#(n, Bool)) select( Vector#(n, Bool) requests );
     return static_priority_arbiter_onehot(requests);
   endmethod
 
@@ -151,7 +151,7 @@ module mkStaticPriorityArbiter(Arbiter#(n));
 endmodule
 
 module mkStaticPriorityArbiterStartAt#(Integer startAt) (Arbiter#(n));
-  method Vector#(n, Bool) select( Vector#(n, Bool) requests );
+  method ActionValue#(Vector#(n, Bool)) select( Vector#(n, Bool) requests );
     return static_priority_arbiter_onehot_start_at(requests, startAt);
   endmethod
 
@@ -181,11 +181,18 @@ module mkRoundRobinArbiter( Arbiter#(n) );
 
   Reg#(Vector#(n, Bool)) token <- mkReg(unpack(1));
 
+//added by zhipeng
+   function Bool vec2bool( Vector#(n, Bool) grants );
+	  Bit#(n) grants_bit = pack(grants);
+	  Bool grants_or = unpack(|grants_bit);
+	  return grants_or;
 
+   endfunction
+//end add
 
-  method Vector#(n, Bool) select( Vector#(n, Bool) requests );
-    Vector#(n, Bool) granted_A = unpack(0);
-    Vector#(n, Bool) granted_B = unpack(0);
+  method ActionValue#(Vector#(n, Bool)) select( Vector#(n, Bool) requests );
+  	Vector#(n, Bool) granted_A = unpack(0);
+  	Vector#(n, Bool) granted_B = unpack(0);
 
     /////////////////////////////////////////////////////////////////////
     // Replicated arbiters are used to avoid cyclical carry chain
@@ -209,25 +216,46 @@ module mkRoundRobinArbiter( Arbiter#(n) );
 
     Vector#(n, Bool) winner = unpack(0);
     //Maybe#(Bit#(m)) winner = Invalid;
-
     for(Integer k=0; k < valueOf(n); k=k+1) begin
       if(granted_A[k] || granted_B[k]) begin
         winner = unpack(0);
-	winner[k] = True;
+	    winner[k] = True;
       end
     end
-    return winner;
+	token <= vec2bool(winner) ? rotateR(winner) : token; //Added by zhipeng
+   return winner;
   endmethod
 
+/*
+Zhipeng: it's not roundrobin, it's Oblivious Arbiter
+with a shift register to rotate the priority by one position
+each cycle.
+"A round-robin arbiter operates on the principle that a request that
+was just served should have the lowest priority on the next round of arbitration"
+"If a grant was issued on the current cycle, one of the g(i) line will be high,
+causing p(i+1) to go high on the next cycle"
+*/
+/*
   method Action next();
     action
       token <= rotate( token ); // WRONG -> this should get
     endaction
+
   endmethod
+*/ //comment by zhipeng
+
+//added by zhipeng
+  method Action next();	
+    action
+      //token <= vec2bool(grants) ? rotateR( grants ) : token; // WRONG -> this should get
+    endaction
+
+  endmethod
+//end add
 
 endmodule
 
-
+/*
 //////////////////////////////////////////////////////
 // Round-robin arbiter from Dally's book. Page 354
 // Modified version to initialize with custom starting priority
@@ -356,19 +384,53 @@ module mkIterativeArbiter_fromEricStartAt#(Integer startAt) ( Arbiter#(n) );
   endmethod
 
 endmodule
-
+*/ //comment by zhipeng
 
 
 //------ Testing ----------
 
 (* synthesize *)
 module mkTestArbiter8(Arbiter#(8));
+  Arbiter#(8) arb <- mkRoundRobinArbiter();
+	
+
+   function Bool vec3bool( Integer i );
+
+	  //if ((i == 6) || (i == 1))
+      	//return True;
+	  //else
+		//return False;
+
+		return True;
+   endfunction
+
+   Vector#(8, Bool) vec = map( vec3bool,  genVector );
+
+   Reg#(int) step <- mkReg(0);
+   //Vector#(8, Bool) results = arb.select(vec);
+   Vector#(8, Bool) zero = unpack(0);
+
+   rule display_select;
+	  $display("step %0d", step);
+	  step <= step + 1;
+	   Vector#(8, Bool) results <- arb.select(vec);
+		//arb.next(zero);
+      for (Integer i= 0; i < 8; i=i+1)
+         $display("select[%0d] = %x", i, results[i]);
+	  $display(" ");
+      //$display("grants_or = %b", vec2bool(results));
+	  $display(" ");
+   endrule	
+
+   rule finish(step == 10);
+      $finish;
+   endrule
   //Arbiter#(8) arb <- mkStaticPriorityArbiter();
-  Arbiter#(8) arb <- mkStaticPriorityArbiterStartAt(2);
+  //Arbiter#(8) arb <- mkStaticPriorityArbiterStartAt(2);
   //Arbiter#(8) arb <- mkRoundRobinArbiter();
   //Arbiter#(8) arb <- mkRoundRobinArbiterStartAt(2);
   //Arbiter#(8) arb <- mkIterativeArbiter_fromEric();
-  return arb;
+  //return arb;
   //method select = arb.select;
   //method next = arb.next;
 endmodule

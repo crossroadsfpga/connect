@@ -3,6 +3,7 @@ clean:
 	rm -rf ./obj/*
 	rm -rf ./build/*
 	rm -f *.o *.so
+	rm -f ./test/*
 	find . -name "*.sched" -exec rm -rf {} \;
 	find . -name "*.o" -exec rm -rf {} \;
 	find . -name "*.bo" -exec rm -rf {} \;
