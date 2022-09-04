@@ -1,32 +1,23 @@
 ####### Bluespec defs ########
 BSC 		= bsc
-#SCRATCH         = ~/scratch/zzhao1/
 SCRATCH         = ./
 VLOG 		= build
 XST_DIR 	= ${SCRATCH}/xst_runs
 DC_DIR 	        = ${SCRATCH}/dc_runs
-#XST_DIR 	= /scratch/zzhao1/xst_runs
-#XST_DIR 	= /home/zzhao1/xst_runs
-#SYN_DIR 	= /scratch/zzhao1/synplify_runs
-SYN_DIR 	= /home/zzhao1/synplify_runs
-VCS_DIR 	= ${SCRATCH}/vcs_runs
-#VCS_DIR 	= ./vcs_runs
-#VCS_DIR 	= /scratch/zzhao1/vcs_runs
 OBJDIR 		= ./obj
 IMPORT_DIRS     = $(shell find . -name ".svn" -prune -o -name "build" -prune -o -type d -exec echo -ne "{}:" \;)
 ALLDIRS		= $(shell find . -name ".svn" -prune -o -name "*.c*" -exec dirname {} \; | uniq)
 IMPORT 		= $(OBJDIR):${BLUESPEC_HOME}/lib/Prelude:${BLUESPEC_HOME}/lib/Libraries:$(IMPORT_DIRS)+
 # With this set of options I was able to compile the largest design. (16x16, 8VCs). Make sure you run on machines with 16GB memory.  16x16 8VCs requires 11.4GB of RAM.
-#GLOBAL_FLAGS    = -opt-undetermined-vals -unspecified-to 0 -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K12288M -H8192M -RTS -v95 -wait-for-license -no-warn-action-shadowing
-# Erics flags
-GLOBAL_FLAGS    = -relax-method-earliness -opt-undetermined-vals -unspecified-to X -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K12288M -H8192M -RTS -v95 -wait-for-license -no-warn-action-shadowing
-#GLOBAL_FLAGS    = -opt-undetermined-vals -unspecified-to X -scheduler-effort 1 -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K12288M -H8192M -RTS -v95 -wait-for-license -no-warn-action-shadowing
-#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K1024M -RTS -v95  -wait-for-license -no-warn-action-shadowing
-#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95  -wait-for-license -no-warn-action-shadowing
-#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -Xc++ -fPIC -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95  -wait-for-license -no-warn-action-shadowing
-#GLOBAL_FLAGS 	= -unspecified-to X -steps-warn-interval 1000 -v -show-stats -scheduler-effort 0 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95  -wait-for-license -no-warn-action-shadowing
+#GLOBAL_FLAGS    = -opt-undetermined-vals -unspecified-to 0 -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K3072M -H8192M -RTS -v95 -no-warn-action-shadowing
+GLOBAL_FLAGS    = -relax-method-earliness -opt-undetermined-vals -unspecified-to X -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K3072M -H8192M -RTS -v95 -no-warn-action-shadowing
+#GLOBAL_FLAGS    = -opt-undetermined-vals -unspecified-to X -scheduler-effort 1 -resource-simple -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K3072M -H8192M -RTS -v95 -no-warn-action-shadowing
+#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K1024M -RTS -v95 -no-warn-action-shadowing
+#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95 -no-warn-action-shadowing
+#GLOBAL_FLAGS 	= -unspecified-to X -scheduler-effort 1 -Xc++ -O0 -Xc++ -fPIC -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95 -no-warn-action-shadowing
+#GLOBAL_FLAGS 	= -unspecified-to X -steps-warn-interval 1000 -v -show-stats -scheduler-effort 0 -Xc++ -O0 -u -simdir $(OBJDIR) -bdir $(OBJDIR) -p $(IMPORT) -check-assert -vdir $(VLOG) +RTS -K500000000 -RTS -v95 -no-warn-action-shadowing
 BSC_vsim  	= bsc $(GLOBAL_FLAGS) -verilog -steps 10000000
-#BSC_vsim  	= bsc $(GLOBAL_FLAGS) -verilog -g 
+#BSC_vsim  	= bsc $(GLOBAL_FLAGS) -verilog -g
 BSC_bsim  	= bsc $(GLOBAL_FLAGS) -show-schedule -D __NOSYNTH__=1 -sim +RTS -K50000000 -RTS -steps 10000000 -g
 timestamp 	= `date +%F_%H%M`
 fixed_timestamp := $(shell date +%F_%H%M)
@@ -53,17 +44,17 @@ define vsim_compile
 @echo Compiling $(strip $(1)) from file $(2) into simulatable Verilog
 @mkdir -p ${OBJDIR}
 @${BSC_vsim} ${GLOBAL_FLAGS} ${USER_FLAGS} -g ${1} ${2}
-endef 
+endef
 
 #define vsim_compile_dbg_ref
 #@echo Compiling $(strip $(1)) from file $(2) into simulatable Verilog
 #@${BSC_vsim} -D EN_DBG_REF ${GLOBAL_FLAGS} -g ${1} ${2}
-#endef 
+#endef
 #
 #define vsim_compile_dbg_ref
 #@echo Compiling $(strip $(1)) from file $(2) into simulatable Verilog
 #@${BSC_vsim} -D EN_DBG_REF ${GLOBAL_FLAGS} -g ${1} ${2}
-#endef 
+#endef
 
 define bsim_compile
 @echo Compiling $(strip $(1)) from file $(2) into .o file
@@ -80,7 +71,7 @@ cp -r ${VLOG}/* ${XST_DIR}/$(strip $(1))_${fixed_timestamp}
 ./scripts/compile_xst.sh ${XST_DIR}/$(strip $(1))_${fixed_timestamp} $(strip $(1)) $(2)
 @echo Finished synthesis in directory: ${XST_DIR}/$(strip $(1))_${fixed_timestamp}
 ./scripts/getSynthStats.sh ${XST_DIR}/$(strip $(1))_${fixed_timestamp}
-endef 
+endef
 
 define map_compile
 @echo Compiling for xst
@@ -100,42 +91,42 @@ cp -r ${VLOG}/* ${DC_DIR}/$(strip $(1))_${fixed_timestamp}
 ./scripts/synth_dc.sh ${DC_DIR}/$(strip $(1))_${fixed_timestamp} $(strip $(1)) $(2)
 @echo Finished synthesis in directory: ${DC_DIR}/$(strip $(1))_${fixed_timestamp}
 #./scripts/getSynthStats.sh ${DC_DIR}/$(strip $(1))_${fixed_timestamp}
-endef 
+endef
 
 # define xst_compile_speed2
 # @echo Compiling for xst
 # mkdir -p ${XST_DIR}/$(strip $(1))_${timestamp}
 # cp -r ${VLOG}/* ${XST_DIR}/$(strip $(1))_${timestamp}
 # ./scripts/compile_xst_speed2.sh ${XST_DIR}/$(strip $(1))_${timestamp} $(strip $(1))
-# endef 
-# 
+# endef
+#
 # define xst_compile_speed3
 # @echo Compiling for xst
 # mkdir -p ${XST_DIR}/$(strip $(1))_${timestamp}
 # cp -r ${VLOG}/* ${XST_DIR}/$(strip $(1))_${timestamp}
 # ./scripts/compile_xst_speed3.sh ${XST_DIR}/$(strip $(1))_${timestamp} $(strip $(1))
-# endef 
-# 
+# endef
+#
 # define xst_compile_xupv5
 # @echo Compiling for xst
 # mkdir -p ${XST_DIR}_xupv5/$(strip $(1))_${timestamp}
 # cp -r ${VLOG}/* ${XST_DIR}_xupv5/$(strip $(1))_${timestamp}
 # ./scripts/compile_xst_xupv5.sh ${XST_DIR}_xupv5/$(strip $(1))_${timestamp} $(strip $(1))
-# endef 
-# 
+# endef
+#
 # define xst_compile_xupv5_speed2
 # @echo Compiling for xst
 # mkdir -p ${XST_DIR}_xupv5/$(strip $(1))_${timestamp}
 # cp -r ${VLOG}/* ${XST_DIR}_xupv5/$(strip $(1))_${timestamp}
 # ./scripts/compile_xst_xupv5_speed2.sh ${XST_DIR}_xupv5/$(strip $(1))_${timestamp} $(strip $(1))
-# endef 
-# 
+# endef
+#
 # define xst_compile_xupv5_speed3
 # @echo Compiling for xst
 # mkdir -p ${XST_DIR}_xupv5/$(strip $(1))_${timestamp}
 # cp -r ${VLOG}/* ${XST_DIR}_xupv5/$(strip $(1))_${timestamp}
 # ./scripts/compile_xst_xupv5_speed3.sh ${XST_DIR}_xupv5/$(strip $(1))_${timestamp} $(strip $(1))
-# endef 
+# endef
 
 define vcs_compile
 @echo Compiling for vcs
@@ -149,10 +140,10 @@ define csrc
 buildrepo \
 $(patsubst %.c,$(OBJDIR)/%.o,$(shell find ${1} -maxdepth 1 -name "*.c")) \
 $(patsubst %.cpp,$(OBJDIR)/%.o,$(shell find ${1} -maxdepth 1 -name "*.cpp"))
-endef  
+endef
 
 #$(shell find ${1} -maxdepth 1 -name "*.c" -exec sh -c "echo {} | sed 's/\.c/.o/g'" \;) \
-#$(patsubst %.cpp,$(OBJDIR)/%.o,$(shell find ${1} -maxdepth 1 -name "*.cpp" -exec sh -c "echo {} | sed 's/\.cpp/.o/g'" \;)) 
+#$(patsubst %.cpp,$(OBJDIR)/%.o,$(shell find ${1} -maxdepth 1 -name "*.cpp" -exec sh -c "echo {} | sed 's/\.cpp/.o/g'" \;))
 
 #GLOBAL_FLAGS = -verbose -u -unspecified-to X -O -show-schedule -vdir verilog
 #GLOBAL_FLAGS = -u -vdir verilog -check-assert -verbose -show-stats -inline-simple
