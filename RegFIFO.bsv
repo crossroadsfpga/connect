@@ -17,17 +17,17 @@ module mkRegFIFO#(Bool guarded)
 		      
 
     FIFOCountIfc#(value_t, depth) fifo;
-/*
+
     if(genC) begin
 	fifo <- mkGFIFOCountWrap(guarded); 
     end
     else begin
 	fifo <- mkRegFIFO_named("anonymous", guarded);
     end
-*/ //comment by zhipeng for testing the synth results
+//comment by zhipeng for testing the synth results
 
     //if(genC) begin
-	fifo <- mkGFIFOCountWrap(guarded); 
+	// fifo <- mkGFIFOCountWrap(guarded); 
     //end
     //else begin
 	//fifo <- mkRegFIFO_named("anonymous", guarded);
